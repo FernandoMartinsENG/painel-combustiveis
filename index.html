@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel de combustíveis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+:root{
+  --fundo:#EDF0EC; --papel:#FAFBF8; --tinta:#16231F; --suave:#5E6F69; --linha:#D5DCD6;
+  --ambar:#B87A00; --alta:#B23A2B; --queda:#1F7A55; --foco:#1D5FD1;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --fundo:#101815; --papel:#17211D; --tinta:#E7EEEA; --suave:#93A59E; --linha:#2A3833;
+         --ambar:#E0A631; --alta:#E8705F; --queda:#4FBF8E; --foco:#7AA7F5; }
+}
+*{box-sizing:border-box}
+html{background:var(--fundo)}
+body{margin:0;color:var(--tinta);font:400 16px/1.5 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-variant-numeric:tabular-nums;padding:28px 20px 56px}
+main{max-width:960px;margin:0 auto}
+h1{font-size:1.05rem;font-weight:600;margin:0}
+h2{font-size:.95rem;font-weight:600;margin:0 0 12px;color:var(--suave)}
+.topo{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;
+  padding-bottom:14px;border-bottom:2px solid var(--tinta);margin-bottom:8px}
+.topo small{color:var(--suave)}
+.aviso{background:var(--papel);border-left:4px solid var(--alta);padding:10px 14px;margin:14px 0;font-size:.9rem}
+section{margin-top:36px}
+
+/* decisão de hoje: o elemento principal da página */
+.decisao{display:grid;grid-template-columns:minmax(0,1.3fr) auto minmax(0,1.6fr);gap:8px 28px;align-items:center;
+  padding:20px 0;border-bottom:1px solid var(--linha)}
+.decisao:first-of-type{border-top:1px solid var(--linha)}
+.decisao .prod{font-size:.9rem;color:var(--suave)}
+.decisao .acao{font-size:1.45rem;font-weight:600;line-height:1.2}
+.decisao .fator{font-size:3rem;font-weight:500;line-height:1;text-align:right;color:var(--ambar)}
+.decisao .fator span{display:block;font-size:.72rem;font-weight:400;color:var(--suave);margin-top:4px}
+.decisao .motivo{color:var(--suave);font-size:.92rem}
+@media(max-width:680px){
+  .decisao{grid-template-columns:1fr auto}
+  .decisao .motivo{grid-column:1/-1}
+}
+
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+th{font-weight:500;color:var(--suave);text-align:right;padding:6px 8px;border-bottom:1px solid var(--tinta);font-size:.8rem}
+td{padding:9px 8px;border-bottom:1px solid var(--linha);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left;white-space:normal}
+td .un{color:var(--suave);font-size:.78rem;margin-left:4px}
+.alta{color:var(--alta)} .queda{color:var(--queda)}
+.tabela{overflow-x:auto}
+svg.spark{width:84px;height:22px;vertical-align:middle}
+
+.controles{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+select,button{font:inherit;font-size:.9rem;color:var(--tinta);background:var(--papel);
+  border:1px solid var(--linha);border-radius:6px;padding:6px 10px;cursor:pointer}
+button[aria-pressed="true"]{background:var(--tinta);color:var(--fundo);border-color:var(--tinta)}
+select:focus-visible,button:focus-visible{outline:2px solid var(--foco);outline-offset:2px}
+.grafico{background:var(--papel);border:1px solid var(--linha);border-radius:6px;padding:14px;height:340px}
+.proj{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:16px}
+.proj div{border-top:2px solid var(--linha);padding-top:8px;font-size:.9rem}
+.proj b{display:block;font-size:1.2rem;font-weight:500}
+.rodape{margin-top:40px;color:var(--suave);font-size:.82rem;max-width:68ch}
+</style>
+</head>
+<body>
+<main>
+  <div class="topo">
+    <h1>Painel de combustíveis</h1>
+    <small id="atualizado">Carregando…</small>
+  </div>
+  <div id="avisos"></div>
+
+  <section>
+    <h2>Compra de hoje</h2>
+    <div id="decisoes"></div>
+  </section>
+
+  <section>
+    <h2>Indicadores</h2>
+    <div class="tabela">
+      <table>
+        <thead><tr><th>Indicador</th><th>Último</th><th>1 dia</th><th>5 dias</th><th>20 dias</th><th>Tendência</th><th>30 dias</th></tr></thead>
+        <tbody id="tabela"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Histórico</h2>
+    <div class="controles">
+      <label class="sr" for="serie" style="position:absolute;left:-9999px">Indicador</label>
+      <select id="serie"></select>
+      <span id="periodos"></span>
+    </div>
+    <div class="grafico"><canvas id="grafico"></canvas></div>
+    <div class="proj" id="proj"></div>
+  </section>
+
+  <p class="rodape">
+    Fontes: Brent, RBOB e Heating Oil (futuros NYMEX/ICE, via Yahoo Finance); dólar (Banco Central Europeu via Frankfurter);
+    etanol Cepea e preços internos digitados por vocês. O PPI é uma estimativa própria (preço internacional, câmbio, frete e
+    custos ajustáveis), não o PPI oficial, e serve para acompanhar a variação. A projeção é uma reta ajustada aos últimos
+    20 pregões: indica a direção, não garante o preço. O volume sugerido é uma proporção do volume médio diário.
+  </p>
+</main>
+
+<script>
+const CASAS = {brent:2,cambio:4,rbob:3,ho:3,ppi_gasolina:2,ppi_diesel:2,etanol:2,paridade:1,gasolina_bomba:2,brent_rl:2};
+const fmt = (v,d=2)=> v==null ? '—' : v.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});
+const var_ = (v,pp)=> v==null ? '<span>—</span>' :
+  `<span class="${v>0?'alta':v<0?'queda':''}">${v>0?'▲':v<0?'▼':''} ${fmt(Math.abs(v),1)}${pp?' p.p.':'%'}</span>`;
+let D, grafico, serieAtual='ppi_gasolina', periodo=90;
+
+function spark(valores){
+  const v = valores.filter(x=>x!=null).slice(-30);
+  if (v.length<3) return '';
+  const min=Math.min(...v), max=Math.max(...v), r=(max-min)||1;
+  const pts = v.map((y,i)=>`${(i/(v.length-1)*82+1).toFixed(1)},${(20-(y-min)/r*18).toFixed(1)}`).join(' ');
+  return `<svg class="spark" viewBox="0 0 84 22" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>`;
+}
+
+function desenhar(){
+  const dt = new Date(D.atualizado_em).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',dateStyle:'short',timeStyle:'short'});
+  document.getElementById('atualizado').textContent =
+    `Atualizado em ${dt} · mercado até ${D.ultima_data_mercado ? D.ultima_data_mercado.split('-').reverse().join('/') : '—'}`;
+
+  if (D.falhas && D.falhas.length)
+    document.getElementById('avisos').innerHTML =
+      `<div class="aviso"><b>Algumas fontes falharam na última atualização.</b> Os números abaixo podem estar defasados: ${D.falhas.join('; ')}</div>`;
+
+  document.getElementById('decisoes').innerHTML = D.decisoes.map(d => `
+    <div class="decisao">
+      <div><div class="prod">${d.produto}</div><div class="acao">${d.acao}</div></div>
+      <div class="fator">${Math.round(d.fator*100)}%<span>do volume médio diário</span></div>
+      <div class="motivo">${d.motivo}</div>
+    </div>`).join('');
+
+  document.getElementById('tabela').innerHTML = D.indicadores.map(i => `
+    <tr><td>${i.nome}</td>
+      <td>${fmt(i.valor,CASAS[i.id])}<span class="un">${i.unidade}</span></td>
+      <td>${var_(i.var_1d,i.var_em_pontos)}</td><td>${var_(i.var_5d,i.var_em_pontos)}</td><td>${var_(i.var_20d,i.var_em_pontos)}</td>
+      <td>${i.tendencia}</td><td>${spark(D.series[i.id]||[])}</td></tr>`).join('');
+
+  document.getElementById('serie').innerHTML =
+    D.indicadores.concat([{id:'gasolina_bomba',nome:'Gasolina na bomba'},{id:'brent_rl',nome:'Brent em R$/L'}])
+      .map(i=>`<option value="${i.id}" ${i.id===serieAtual?'selected':''}>${i.nome}</option>`).join('');
+  document.getElementById('serie').onchange = e => { serieAtual=e.target.value; grafico_(); };
+
+  document.getElementById('periodos').innerHTML = [30,90,180].map(p =>
+    `<button aria-pressed="${p===periodo}" data-p="${p}">${p} dias</button>`).join(' ');
+  document.querySelectorAll('#periodos button').forEach(b => b.onclick = () => {
+    periodo=+b.dataset.p;
+    document.querySelectorAll('#periodos button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+    grafico_();
+  });
+
+  document.getElementById('proj').innerHTML = (D.projecao||[]).map(p => `
+    <div>${p.nome}<b>${fmt(p.valor_projetado,2)} <span class="un">${p.unidade}</span></b>
+    tendência para daqui a ${p.horizonte} pregões</div>`).join('');
+  grafico_();
+}
+
+function grafico_(){
+  const s = D.series, n = Math.min(periodo, s.datas.length);
+  const css = getComputedStyle(document.documentElement);
+  const cor = css.getPropertyValue('--ambar').trim(), suave = css.getPropertyValue('--suave').trim(), linha = css.getPropertyValue('--linha').trim();
+  const nome = (D.indicadores.find(i=>i.id===serieAtual)||{nome:serieAtual==='brent_rl'?'Brent em R$/L':'Gasolina na bomba'}).nome;
+  if (grafico) grafico.destroy();
+  grafico = new Chart(document.getElementById('grafico'), {
+    type:'line',
+    data:{labels:s.datas.slice(-n).map(d=>d.split('-').reverse().slice(0,2).join('/')),
+      datasets:[{label:nome,data:(s[serieAtual]||[]).slice(-n),borderColor:cor,backgroundColor:cor,borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:.2,spanGaps:true}]},
+    options:{maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${nome}: ${fmt(c.parsed.y,CASAS[serieAtual]||2)}`}}},
+      scales:{x:{ticks:{color:suave,maxTicksLimit:8},grid:{display:false}},y:{ticks:{color:suave},grid:{color:linha}}}}
+  });
+}
+
+fetch('dados.json?'+Date.now()).then(r=>r.json()).then(d=>{
+  if (!d.indicadores || !d.indicadores.length) throw new Error('vazio');
+  D=d; desenhar();
+}).catch(()=>{
+  document.getElementById('atualizado').textContent='Sem dados ainda';
+  document.getElementById('avisos').innerHTML='<div class="aviso">Ainda não há dados. No GitHub, abra a aba <b>Actions</b>, escolha <b>Atualizar painel</b> e clique em <b>Run workflow</b>.</div>';
+});
+</script>
+</body>
+</html>

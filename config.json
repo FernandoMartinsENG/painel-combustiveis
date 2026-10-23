@@ -1,0 +1,16 @@
+{
+  "ppi": {
+    "frete_usd_gal": 0.10,
+    "custos_gasolina_rl": 1.20,
+    "custos_diesel_rl": 1.20
+  },
+  "decisao": {
+    "limiar_pct": 2.0,
+    "fator_antecipar": 1.2,
+    "fator_adiar": 0.8,
+    "usar_defasagem": false,
+    "defasagem_limite_pct": 3.0,
+    "paridade_etanol_compensa": 70,
+    "paridade_neutra": 75
+  }
+}

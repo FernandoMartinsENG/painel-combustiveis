@@ -1,0 +1,31 @@
+name: Atualizar painel
+
+on:
+  schedule:
+    - cron: "0 10 * * 1-5"   # 07:00 de Brasília, de segunda a sexta
+  workflow_dispatch:          # botão "Run workflow" para rodar na hora
+  push:
+    paths: ["manual.json", "config.json"]   # editou os valores manuais? atualiza sozinho
+
+permissions:
+  contents: write
+
+jobs:
+  atualizar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Coletar e analisar
+        run: python coletor/coletar.py
+      - name: Salvar resultado
+        run: |
+          git config user.name "painel-bot"
+          git config user.email "painel-bot@users.noreply.github.com"
+          git add data docs
+          git diff --cached --quiet || git commit -m "Atualiza dados $(date -u +%F)"
+          git push
+      - name: Avisar se alguma fonte falhou
+        run: python -c "import json,sys; f=json.load(open('docs/dados.json'))['falhas']; print(f); sys.exit(1 if f else 0)"
